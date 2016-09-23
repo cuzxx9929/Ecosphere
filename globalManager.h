@@ -1,1 +1,1 @@
-void hello();
+void *globalmanager(void* args);
