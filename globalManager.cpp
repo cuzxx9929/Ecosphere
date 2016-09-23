@@ -1,8 +1,13 @@
 #include "main.h"
 #include <iostream>
 #include <stdlib.h>
+#include <semaphore.h>
 
 using namespace std;
+
+extern sem_t terminateFlag;
+extern pthread_mutex_t protectPrint;
+extern struct dayInfoStruct todayInfo;
 
 void *globalmanager(void* args)
 {
@@ -58,18 +63,21 @@ void *globalmanager(void* args)
     }
 
     //print information of the day
+    pthread_mutex_lock(&protectPrint);
     cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
     cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<endl;
-
-
-    if(todayInfo.globalDay==100)
-      break;
-
-
-    todayInfo.globalDay++;
+    pthread_mutex_unlock(&protectPrint);
 
     cout<<"---------------------------------------------------------------"<<endl;
 
+
+    if(todayInfo.globalDay==100)
+    {
+       sem_post(&terminateFlag);
+       return NULL;
+     }
+
+    todayInfo.globalDay++;
+
   }
-  return NULL;
 }

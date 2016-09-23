@@ -1,3 +1,5 @@
+#include <semaphore.h>
+
 #define windProb 0.33
 #define rainProb 0.55
 
@@ -7,6 +9,6 @@ struct dayInfoStruct{
   int globalDay;
   int globalMonth;
   int globalYear;
-}todayInfo;
+};
 
 int main();
