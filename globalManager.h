@@ -1,1 +1,0 @@
-void *globalmanager(void* args);
