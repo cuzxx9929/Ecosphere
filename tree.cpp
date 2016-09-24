@@ -5,20 +5,11 @@
 #include <unistd.h>
 #include <iomanip>
 
-using namespace std;
-
 struct treeStruct{
   int id;
   int x;
   int y;
 };
-
-extern sem_t endReading;
-extern sem_t dayBEGINs;
-extern sem_t endReadingCheck;
-extern sem_t dayENDs;
-extern pthread_mutex_t protectPrint;
-extern struct dayInfoStruct todayInfo;
 
 #define newSeedProb 0.1
 #define windPolliProb 0.15
@@ -46,6 +37,13 @@ extern struct dayInfoStruct todayInfo;
 #define state_bloom 3
 #define state_fruiting 4
 
+extern sem_t endReading;
+extern sem_t dayBEGINs;
+extern sem_t endReadingCheck;
+extern sem_t dayENDs;
+extern pthread_mutex_t protectPrint;
+extern struct dayInfoStruct todayInfo;
+
 struct treeStruct trees[maxTree];
 pthread_t tree_thread[maxTree];
 int treeID=0;
@@ -65,7 +63,7 @@ void add_tree_to_list(int x, int y)
   bool availableSpace=true;
 
   if(treeIDlast>=maxTree)
-  cout<<"no more tree can be planted"<<endl;
+  std::cout<<"no more tree can be planted"<<std::endl;
   else if(treeIDlast==0)
   {
     trees[treeIDlast].x=0;
@@ -78,7 +76,7 @@ void add_tree_to_list(int x, int y)
     {
       if(i==4*newSeedSpace*newSeedSpace)
       {
-        cout<<"no space to plant this seed"<<endl;
+        std::cout<<"no space to plant this seed"<<std::endl;
         return;
       }
 
@@ -181,13 +179,13 @@ void *tree(void* args)
         if(day%timesNewLeaves==0)
         {
           if(leaves+branch*newLeaves<=maxLeaves)
-            leaves+=branch*newLeaves;
+          leaves+=branch*newLeaves;
           else leaves=maxLeaves;
         }
 
         //to next state
         if(day>=toSeedling+toTree)
-          goNextState=true;
+        goNextState=true;
 
       }
       //state tree 2
@@ -202,7 +200,7 @@ void *tree(void* args)
         if(day%timesNewLeaves==0)
         {
           if(leaves+branch*newLeaves<=maxLeaves)
-            leaves+=branch*newLeaves;
+          leaves+=branch*newLeaves;
           else leaves=maxLeaves;
         }
 
@@ -212,7 +210,7 @@ void *tree(void* args)
           goNextState=true;
           bloomDays=0;
           for(int i=0;i<branch;i++)
-            flower+=pick_rand_num(flowersPBranch,floatingRange);
+          flower+=pick_rand_num(flowersPBranch,floatingRange);
         }
       }
       //state bloom 3
@@ -224,13 +222,13 @@ void *tree(void* args)
         {
           dying=true;
           break;
-          }
+        }
 
         //leaves are growing if less than max
         if(day%timesNewLeaves==0)
         {
           if(leaves+branch*newLeaves<=maxLeaves)
-            leaves+=branch*newLeaves;
+          leaves+=branch*newLeaves;
           else leaves=maxLeaves;
         }
 
@@ -266,13 +264,13 @@ void *tree(void* args)
         {
           dying=true;
           break;
-          }
+        }
 
         //leaves are growing if less than max
         if(day%timesNewLeaves==0)
         {
           if(leaves+branch*newLeaves<=maxLeaves)
-            leaves+=branch*newLeaves;
+          leaves+=branch*newLeaves;
           else leaves=maxLeaves;
         }
 
@@ -282,32 +280,32 @@ void *tree(void* args)
           for(int i=0;i<fruit;i++)
           {
             if(rand()%101<=newSeedProb)
-              add_tree_to_list(positionInfo->x,positionInfo->y);
+            add_tree_to_list(positionInfo->x,positionInfo->y);
           }
           fruit=0;
         }
       }
 
       if(day>=lifeTime)
-        dying=true;
+      dying=true;
 
       //print today tree's information
       pthread_mutex_lock(&protectPrint);
-      cout<<setw(5)<<positionInfo->id<<setw(8)<<day<<setw(10);
+      std::cout<<std::setw(5)<<positionInfo->id<<std::setw(8)<<day<<std::setw(10);
       switch(state)
       {
         case 0:
-          cout<<"seed"; break;
+        std::cout<<"seed"; break;
         case 1:
-          cout<<"seedling"; break;
+        std::cout<<"seedling"; break;
         case 2:
-          cout<<"tree"; break;
+        std::cout<<"tree"; break;
         case 3:
-          cout<<"bloom"; break;
+        std::cout<<"bloom"; break;
         case 4:
-          cout<<"fruiting"; break;
+        std::cout<<"fruiting"; break;
       }
-      cout<<setw(8)<<flower<<setw(9)<<fruit<<setw(9)<<dying<<setw(9)<<positionInfo->x<<"."<<positionInfo->y<<endl;
+      std::cout<<std::setw(8)<<flower<<std::setw(9)<<fruit<<std::setw(9)<<dying<<std::setw(9)<<positionInfo->x<<"."<<positionInfo->y<<std::endl;
       pthread_mutex_unlock(&protectPrint);
 
       //update tree state
@@ -315,7 +313,7 @@ void *tree(void* args)
       {
         goNextState=false;
         if(state==state_fruiting)
-          state=state_tree;
+        state=state_tree;
         state++;
       }
 
@@ -339,6 +337,6 @@ int tree_manager()
     treesAlive++;
   }
   for(treeDying;treeDying>0;treeDying--)
-    treesAlive--;
+  treesAlive--;
   return treesAlive;
 }

@@ -5,15 +5,12 @@
 #include <semaphore.h>
 #include <unistd.h>
 
-using namespace std;
-
 sem_t terminateFlag;
 sem_t endReading;
 sem_t dayBEGINs;
 sem_t endReadingCheck;
 sem_t dayENDs;
 pthread_mutex_t protectPrint;
-
 struct dayInfoStruct todayInfo;
 
 int creature()
@@ -23,7 +20,7 @@ int creature()
 
 void creature_info_print()
 {
-  cout<<" treeID   day    state     flowers   fruits   dying   position"<<endl;
+  std::cout<<" treeID   day    state     flowers   fruits   dying   position"<<std::endl;
 }
 
 void update_today_info()
@@ -97,38 +94,32 @@ void *worldmanager(void* args)
 
     //print information of the day
     pthread_mutex_lock(&protectPrint);
-    cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
-    cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<endl;
+    std::cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
+    std::cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<std::endl;
     creature_info_print();
     pthread_mutex_unlock(&protectPrint);
 
     //notice creatures a day begins
     for(int i=0;i<alive;i++)//the last treeID is not been used
-    {
-      sem_post(&dayBEGINs);
-    }
+    sem_post(&dayBEGINs);
     //wait creatures to finish reading day info
     for(int i=0;i<alive;i++)
-    {
-      sem_wait(&endReading);
-    }
+    sem_wait(&endReading);
+
     //creatures all done, program continues
     for(int i=0;i<alive;i++)
-    {
-      sem_post(&endReadingCheck);
-    }
+    sem_post(&endReadingCheck);
     //wait to end today
     for(int i=0;i<alive;i++)
-    {
-      sem_wait(&dayENDs);
-    }
+    sem_wait(&dayENDs);
 
     //one day has gone
     usleep(usecOf1day);
     todayInfo.globalDay++;
-    cout<<"---------------------------------------------------------------"<<endl;
+    std::cout<<"---------------------------------------------------------------"<<std::endl;
 
-    if(dynamic && alive==0) break;
+    if(dynamic && alive==0)
+    break;
 
     alive=creature();
 

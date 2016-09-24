@@ -2,8 +2,6 @@
 #include "tree.h"
 #include <iostream>
 
-using namespace std;
-
 int main()
 {
   pthread_t world;
@@ -14,7 +12,7 @@ int main()
   add_tree_to_list(0,0);
 
   pthread_join(world,NULL);
-  cout<<"No more life!! world terminates!!"<<endl;
+  std::cout<<"No more life!! world terminates!!"<<std::endl;
 
   return 0;
 }
