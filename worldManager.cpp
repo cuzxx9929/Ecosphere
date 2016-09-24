@@ -1,4 +1,5 @@
 #include "main.h"
+#include "tree.h"
 #include <iostream>
 #include <stdlib.h>
 #include <semaphore.h>
@@ -11,18 +12,32 @@ extern sem_t endReading;
 extern sem_t dayBEGINs;
 extern sem_t endReadingCheck;
 extern sem_t dayENDs;
-
 extern pthread_mutex_t protectPrint;
 extern struct dayInfoStruct todayInfo;
+extern pthread_t tree_thread[maxTree];
+extern struct treeStruct trees[maxTree];
+
+int treeID=0;
+int treesAlive=0;
+int treeIDlast=0;
+int treeDying=0;
 
 int creature()
 {
-  return 0;
+  for(treeID;treeID<treeIDlast;treeID++)
+  {
+    pthread_create(&tree_thread[treeID], NULL, tree, &trees[treeID]);
+    treesAlive++;
+  }
+  for(treeDying;treeDying>0;treeDying--)
+    treesAlive--;
+  return treesAlive;
 }
 
 void creature_info_print()
 {
-  cout<<"TBD"<<endl;
+  cout<<"  totalTrees:"<<treeID<<"  deadTrees:"<<treeID-treesAlive<<endl;
+  cout<<" treeID   day    state     flowers   fruits   dying   position"<<endl;
 }
 void update_today_info()
 {
@@ -78,41 +93,36 @@ void *worldmanager(void* args)
   todayInfo.globalYear=1;
   todayInfo.globalDay=1;
 
+  //create initial creatures
+  creature();
   while(1)
   {
-    //terminate the world
-    if(todayInfo.globalDay>100)
-    {
-      sem_post(&terminateFlag);
-      return NULL;
-    }
-
     update_today_info();
 
     //print information of the day
     pthread_mutex_lock(&protectPrint);
     cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
-    cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<endl;
+    cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy;
     creature_info_print();
     pthread_mutex_unlock(&protectPrint);
 
     //notice creatures a day begins
-    for(int i=0;i<creature();i++)//the last treeID is not been used
+    for(int i=0;i<treesAlive;i++)//the last treeID is not been used
     {
       sem_post(&dayBEGINs);
     }
     //wait creatures to finish reading day info
-    for(int i=0;i<creature();i++)
+    for(int i=0;i<treesAlive;i++)
     {
       sem_wait(&endReading);
     }
     //creatures all done, program continues
-    for(int i=0;i<creature();i++)
+    for(int i=0;i<treesAlive;i++)
     {
       sem_post(&endReadingCheck);
     }
     //wait to end today
-    for(int i=0;i<creature();i++)
+    for(int i=0;i<treesAlive;i++)
     {
       sem_wait(&dayENDs);
     }
@@ -121,5 +131,13 @@ void *worldmanager(void* args)
     usleep(usecOf1day);
     todayInfo.globalDay++;
     cout<<"---------------------------------------------------------------"<<endl;
+
+    if(treeID>0 && treesAlive==0)
+    {
+      sem_post(&terminateFlag);
+      return NULL;
+    }
+
+    creature();
   }
 }
