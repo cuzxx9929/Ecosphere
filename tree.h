@@ -1,3 +1,2 @@
-int pickRandomNum(int num, double floating);
-void newTree(int x, int y);
-void *tree(void* args);
+int tree_manager();
+void add_tree_to_list(int x, int y);

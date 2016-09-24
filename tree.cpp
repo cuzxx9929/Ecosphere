@@ -1,4 +1,3 @@
-#include "main.h"
 #include "worldManager.h"
 #include <iostream>
 #include <stdlib.h>
@@ -6,28 +5,61 @@
 #include <unistd.h>
 #include <iomanip>
 
-
 using namespace std;
+
+struct treeStruct{
+  int id;
+  int x;
+  int y;
+};
 
 extern sem_t endReading;
 extern sem_t dayBEGINs;
 extern sem_t endReadingCheck;
 extern sem_t dayENDs;
-extern int treeID;
-extern int treesAlive;
-extern int treeIDlast;
-extern int treeDying;
 extern pthread_mutex_t protectPrint;
 extern struct dayInfoStruct todayInfo;
-extern struct treeStruct trees[maxTree];
 
-int pickRandomNum(int num, double floating)
+#define newSeedProb 0.1
+#define windPolliProb 0.15
+
+#define seedDieNoWater 3
+#define seedlingDieNoWater 5
+#define treeDieNoWater 7
+#define plantLifeTime 3650
+
+#define seedToSeedling 14
+#define seedlingToTree 180
+#define bloomToFruiting 30
+#define fruitingToTree 14
+
+#define flowersPBranch 5
+#define leavesPBranch 20
+#define timesNewLeaves 2
+#define newLeaves 2
+#define timeToBranch 10
+#define newSeedSpace 3
+
+#define state_seed 0
+#define state_seedling 1
+#define state_tree 2
+#define state_bloom 3
+#define state_fruiting 4
+
+struct treeStruct trees[maxTree];
+pthread_t tree_thread[maxTree];
+int treeID=0;
+int treesAlive=0;
+int treeIDlast=0;
+int treeDying=0;
+
+int pick_rand_num(int num, double floating)
 {
   int randomNum = rand()%(int)(num*(1+floating)-num*(1-floating)+1)+(int)(num*(1-floating));
   return randomNum;
 }
 
-void newTree(int x, int y)
+void add_tree_to_list(int x, int y)
 {
   int newx,newy;
   bool availableSpace=true;
@@ -92,11 +124,11 @@ void *tree(void* args)
 
   //randomly set days plant requires to enter next state
   srand(time(0)-pthread_self());
-  int toSeedling = pickRandomNum(seedToSeedling,floatingRange);
-  int toTree=pickRandomNum(seedlingToTree,floatingRange);
-  int toFruiting=pickRandomNum(bloomToFruiting,floatingRange);
-  int backtoTree=pickRandomNum(fruitingToTree,floatingRange);
-  int lifeTime=pickRandomNum(plantLifeTime,floatingRange);
+  int toSeedling = pick_rand_num(seedToSeedling,floatingRange);
+  int toTree=pick_rand_num(seedlingToTree,floatingRange);
+  int toFruiting=pick_rand_num(bloomToFruiting,floatingRange);
+  int backtoTree=pick_rand_num(fruitingToTree,floatingRange);
+  int lifeTime=pick_rand_num(plantLifeTime,floatingRange);
 
   while(1)
     {
@@ -122,7 +154,7 @@ void *tree(void* args)
         {
           goNextState=true;
           branch=1;
-          maxLeaves+=branch*pickRandomNum(leavesPBranch,floatingRange);
+          maxLeaves+=branch*pick_rand_num(leavesPBranch,floatingRange);
         }
       }
       //state seedling 1
@@ -139,7 +171,7 @@ void *tree(void* args)
         {
           if( ((double)rand() / RAND_MAX) <= 1.0/(double)branch )
           {
-            maxLeaves+=branch*pickRandomNum(leavesPBranch,floatingRange);
+            maxLeaves+=branch*pick_rand_num(leavesPBranch,floatingRange);
             branch=branch*2;
           }
           branchCount++;
@@ -180,7 +212,7 @@ void *tree(void* args)
           goNextState=true;
           bloomDays=0;
           for(int i=0;i<branch;i++)
-            flower+=pickRandomNum(flowersPBranch,floatingRange);
+            flower+=pick_rand_num(flowersPBranch,floatingRange);
         }
       }
       //state bloom 3
@@ -250,7 +282,7 @@ void *tree(void* args)
           for(int i=0;i<fruit;i++)
           {
             if(rand()%101<=newSeedProb)
-              newTree(positionInfo->x,positionInfo->y);
+              add_tree_to_list(positionInfo->x,positionInfo->y);
           }
           fruit=0;
         }
@@ -297,4 +329,16 @@ void *tree(void* args)
       }
       sem_post(&dayENDs);
   }
+}
+
+int tree_manager()
+{
+  for(treeID;treeID<treeIDlast;treeID++)
+  {
+    pthread_create(&tree_thread[treeID], NULL, tree, &trees[treeID]);
+    treesAlive++;
+  }
+  for(treeDying;treeDying>0;treeDying--)
+    treesAlive--;
+  return treesAlive;
 }

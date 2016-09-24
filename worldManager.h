@@ -1,5 +1,15 @@
-  int creature();
-  void creature_info_print();
-  void update_today_info();
+struct dayInfoStruct{
+  bool todayIsRainy;
+  bool todayIsWindy;
+  int globalDay;
+  int globalMonth;
+  int globalYear;
+};
 
-  void *worldmanager(void* args);
+#define usecOf1day 100 //1s=1000000usec
+#define windProb 0.44
+#define rainProb 1
+#define maxTree 100
+#define floatingRange 0.15
+
+void *worldmanager(void* args);

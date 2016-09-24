@@ -1,5 +1,5 @@
-#include "main.h"
 #include "tree.h"
+#include "worldManager.h"
 #include <iostream>
 #include <stdlib.h>
 #include <semaphore.h>
@@ -7,38 +7,25 @@
 
 using namespace std;
 
-extern sem_t terminateFlag;
-extern sem_t endReading;
-extern sem_t dayBEGINs;
-extern sem_t endReadingCheck;
-extern sem_t dayENDs;
-extern pthread_mutex_t protectPrint;
-extern struct dayInfoStruct todayInfo;
-extern pthread_t tree_thread[maxTree];
-extern struct treeStruct trees[maxTree];
+sem_t terminateFlag;
+sem_t endReading;
+sem_t dayBEGINs;
+sem_t endReadingCheck;
+sem_t dayENDs;
+pthread_mutex_t protectPrint;
 
-int treeID=0;
-int treesAlive=0;
-int treeIDlast=0;
-int treeDying=0;
+struct dayInfoStruct todayInfo;
 
 int creature()
 {
-  for(treeID;treeID<treeIDlast;treeID++)
-  {
-    pthread_create(&tree_thread[treeID], NULL, tree, &trees[treeID]);
-    treesAlive++;
-  }
-  for(treeDying;treeDying>0;treeDying--)
-    treesAlive--;
-  return treesAlive;
+  return tree_manager();
 }
 
 void creature_info_print()
 {
-  cout<<"  totalTrees:"<<treeID<<"  deadTrees:"<<treeID-treesAlive<<endl;
   cout<<" treeID   day    state     flowers   fruits   dying   position"<<endl;
 }
+
 void update_today_info()
 {
   //update new day information
@@ -87,14 +74,23 @@ void update_today_info()
 
 void *worldmanager(void* args)
 {
+  bool dynamic=false;
   srand(time(0)-pthread_self());
+
+  //semaphore and mutex initialize
+  sem_init(&terminateFlag, 0, 0);
+  sem_init(&endReading, 0, 0);
+  sem_init(&dayBEGINs, 0, 0);
+  sem_init(&endReadingCheck, 0, 0);
+  sem_init(&dayENDs, 0, 0);
+  pthread_mutex_init(&protectPrint, NULL);
 
   todayInfo.globalMonth=1;
   todayInfo.globalYear=1;
   todayInfo.globalDay=1;
 
   //create initial creatures
-  creature();
+  int alive=creature();
   while(1)
   {
     update_today_info();
@@ -102,27 +98,27 @@ void *worldmanager(void* args)
     //print information of the day
     pthread_mutex_lock(&protectPrint);
     cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
-    cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy;
+    cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<endl;
     creature_info_print();
     pthread_mutex_unlock(&protectPrint);
 
     //notice creatures a day begins
-    for(int i=0;i<treesAlive;i++)//the last treeID is not been used
+    for(int i=0;i<alive;i++)//the last treeID is not been used
     {
       sem_post(&dayBEGINs);
     }
     //wait creatures to finish reading day info
-    for(int i=0;i<treesAlive;i++)
+    for(int i=0;i<alive;i++)
     {
       sem_wait(&endReading);
     }
     //creatures all done, program continues
-    for(int i=0;i<treesAlive;i++)
+    for(int i=0;i<alive;i++)
     {
       sem_post(&endReadingCheck);
     }
     //wait to end today
-    for(int i=0;i<treesAlive;i++)
+    for(int i=0;i<alive;i++)
     {
       sem_wait(&dayENDs);
     }
@@ -132,12 +128,18 @@ void *worldmanager(void* args)
     todayInfo.globalDay++;
     cout<<"---------------------------------------------------------------"<<endl;
 
-    if(treeID>0 && treesAlive==0)
-    {
-      sem_post(&terminateFlag);
-      return NULL;
-    }
+    if(dynamic && alive==0) break;
 
-    creature();
+    alive=creature();
+
+    if(!dynamic && alive>0)
+    dynamic=true;
   }
+  //semaphore and mutex destroy
+  sem_destroy(&terminateFlag);
+  sem_destroy(&endReading);
+  sem_destroy(&dayBEGINs);
+  sem_destroy(&endReadingCheck);
+  sem_destroy(&dayENDs);
+  pthread_mutex_destroy(&protectPrint);
 }
