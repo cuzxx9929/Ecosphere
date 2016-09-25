@@ -18,10 +18,6 @@ int creature()
   return tree_manager();
 }
 
-void creature_info_print()
-{
-  std::cout<<" treeID   day    state     flowers   fruits   dying   position"<<std::endl;
-}
 
 void update_today_info()
 {
@@ -91,7 +87,7 @@ void *worldmanager(void* args)
   std::cout<<"\33[2;1H"<<"rainy:   windy: "<<std::endl;
   std::cout<<"\33[22;1H";
   for(int i=0;i<101;i++)
-  std::cout<<"─";//print ground
+  std::cout<<"▀";//print ground
 
 
   //create initial creatures
@@ -125,13 +121,13 @@ void *worldmanager(void* args)
     usleep(usecOf1day);
     todayInfo.globalDay++;
 
-    if(dynamic && alive==0)
-    break;
-
     alive=creature();
 
     if(!dynamic && alive>0)
     dynamic=true;
+
+    if(dynamic && alive==0)
+    break;
   }
   //semaphore and mutex destroy
   sem_destroy(&terminateFlag);

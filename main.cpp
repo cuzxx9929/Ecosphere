@@ -9,7 +9,7 @@ int main()
   //create world thread
   pthread_create(&world,NULL,worldmanager,NULL);
   //add 1 three to list
-  add_tree_to_list(0,0);
+  add_tree_to_list(0);
 
   pthread_join(world,NULL);
   std::cout<<"No more life!! world terminates!!"<<std::endl;
