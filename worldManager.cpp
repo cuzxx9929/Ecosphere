@@ -86,6 +86,14 @@ void *worldmanager(void* args)
   todayInfo.globalYear=1;
   todayInfo.globalDay=1;
 
+  system("clear");
+  std::cout<<"\33[?25l";//hide cursor
+  std::cout<<"\33[2;1H"<<"rainy:   windy: "<<std::endl;
+  std::cout<<"\33[22;1H";
+  for(int i=0;i<101;i++)
+  std::cout<<"─";//print ground
+
+
   //create initial creatures
   int alive=creature();
   while(1)
@@ -94,9 +102,9 @@ void *worldmanager(void* args)
 
     //print information of the day
     pthread_mutex_lock(&protectPrint);
-    std::cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D ";
-    std::cout<<"  rainy:"<<todayInfo.todayIsRainy<<"  windy:"<<todayInfo.todayIsWindy<<std::endl;
-    creature_info_print();
+    std::cout<<"\33[1;1H"<<"\33[K";//move to 1,1 position, and clear the row
+    std::cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D "<<std::flush;
+    std::cout<<"\33[2;7H"<<todayInfo.todayIsRainy<<"\33[2;16H"<<todayInfo.todayIsWindy<<std::flush;
     pthread_mutex_unlock(&protectPrint);
 
     //notice creatures a day begins
@@ -116,7 +124,6 @@ void *worldmanager(void* args)
     //one day has gone
     usleep(usecOf1day);
     todayInfo.globalDay++;
-    std::cout<<"---------------------------------------------------------------"<<std::endl;
 
     if(dynamic && alive==0)
     break;
@@ -133,4 +140,5 @@ void *worldmanager(void* args)
   sem_destroy(&endReadingCheck);
   sem_destroy(&dayENDs);
   pthread_mutex_destroy(&protectPrint);
+  std::cout<<"\33[?25h"<<"\33[23;1H";//display cursor
 }

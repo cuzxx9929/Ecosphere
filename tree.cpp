@@ -288,7 +288,7 @@ void *tree(void* args)
 
       if(day>=lifeTime)
       dying=true;
-
+/*
       //print today tree's information
       pthread_mutex_lock(&protectPrint);
       std::cout<<std::setw(5)<<positionInfo->id<<std::setw(8)<<day<<std::setw(10);
@@ -307,7 +307,7 @@ void *tree(void* args)
       }
       std::cout<<std::setw(8)<<flower<<std::setw(9)<<fruit<<std::setw(9)<<dying<<std::setw(9)<<positionInfo->x<<"."<<positionInfo->y<<std::endl;
       pthread_mutex_unlock(&protectPrint);
-
+*/
       //update tree state
       if(goNextState)
       {
