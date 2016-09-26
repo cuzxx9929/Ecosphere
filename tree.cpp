@@ -1,4 +1,4 @@
-#include "worldManager.h"
+#include "main.h"
 #include <iostream>
 #include <stdlib.h>
 #include <semaphore.h>
@@ -6,12 +6,12 @@
 #include <iomanip>
 
 #define newSeedProb 0.1
-#define windPolliProb 0.2
+#define windPolliProb 0.5
 
 #define seedDieNoWater 3
 #define seedlingDieNoWater 6
 #define treeDieNoWater 10
-#define treeLifeTime 3650
+#define treeLifeTime 1000
 
 #define seedToSeedling 14
 #define seedlingToTree 180
@@ -28,20 +28,40 @@
 #define state_bloom 3
 #define state_fruiting 4
 
-extern sem_t endReading;
 extern sem_t dayBEGINs;
-extern sem_t endReadingCheck;
-extern sem_t dayENDs;
+extern sem_t createDone;
+extern sem_t dayUpdate;
+extern sem_t dayends;
 extern pthread_mutex_t protectPrint;
 extern struct dayInfoStruct todayInfo;
 
-pthread_t tree_thread[maxTree];
-int treeID=0;
-int treesAlive=0;
-int treeIDlast=0;
-int treeDying=0;
-int trees[maxTree];
+struct treeStruct{
+  int position;
+  int state;
+  int prestate;
+  int day;
+  int daysNoWater;
+  int branch;
+  int branchCount;
+  int bloomDays;
+  int fruitDays;
+  int fruit;
+  int flower;
+  int havingFruit;
+  int toTree;
+  int toSeedling;
+  int toFruiting;
+  int backtoTree;
+  int lifeTime;
+  bool dying;
+  bool goNextState;
+};
 
+struct treeStruct treesManage[maxTree];
+int avaiSpace[maxTree];
+int treeNum=0;
+int newTree[maxTree];
+int newTreeCount=0;
 
 int pick_rand_num(int num, double floating)
 {
@@ -49,236 +69,245 @@ int pick_rand_num(int num, double floating)
   return randomNum;
 }
 
+void draw_tree()
+{
+  for(int i=0;i<treeNum;i++)
+  {
+    if(!treesManage[i].dying)
+    continue;
+    pthread_mutex_lock(&protectPrint);
+    std::cout<<" "<<treesManage[i].day;
+    switch(treesManage[i].state)
+    {
+      case 0:
+          std::cout<<"seed"; break;
+      case 1:
+          std::cout<<"seedling"; break;
+      case 2:
+          std::cout<<"tree"; break;
+      case 3:
+          std::cout<<"bloom"; break;
+      case 4:
+          std::cout<<"fruiting"; break;
+    }
+    std::cout<<std::endl;
+    pthread_mutex_unlock(&protectPrint);
+    }
+}
+
+void create_tree()
+{
+  for(newTreeCount;newTreeCount>0;newTreeCount--)
+  {
+    int freeSpace=avaiSpace[newTreeCount];
+
+    treesManage[freeSpace].position=newTree[newTreeCount-1];
+    //randomly set days plant requires to enter next state
+    treesManage[freeSpace].toTree=pick_rand_num(seedlingToTree,floatingRange);
+    treesManage[freeSpace].toSeedling=pick_rand_num(seedToSeedling,floatingRange);
+    treesManage[freeSpace].toFruiting=pick_rand_num(bloomToFruiting,floatingRange);
+    treesManage[freeSpace].backtoTree=pick_rand_num(fruitingToTree,floatingRange);
+    treesManage[freeSpace].lifeTime=pick_rand_num(treeLifeTime,floatingRange);
+    treesManage[freeSpace].state=state_seed;
+    treesManage[freeSpace].prestate=-1;
+    treesManage[freeSpace].day=0;
+    treesManage[freeSpace].daysNoWater=0;
+    treesManage[freeSpace].branch=1;
+    treesManage[freeSpace].branchCount=0;
+    treesManage[freeSpace].bloomDays=0;
+    treesManage[freeSpace].fruitDays=0;
+    treesManage[freeSpace].fruit=0;
+    treesManage[freeSpace].flower=0;
+    treesManage[freeSpace].havingFruit=0;
+    treesManage[freeSpace].dying=false;
+    treesManage[freeSpace].goNextState=false;
+    treeNum++;
+  }
+}
+
+
+
 void add_tree_to_list(int position)
 {
-  int newP;
-  bool availableSpace=true;
-
-  if(treeIDlast>=maxTree)
-  std::cout<<"no more tree can be planted"<<std::endl;
-  else if(treeIDlast==0)
+  bool availableSpace=false;
+  //randomly pick x,y ; use this position if no other threes use it
+  if(treeNum==maxTree)
   {
-    trees[treeIDlast]=0;
-    treeIDlast++;
-  }
-  else{
-      //randomly pick x,y ; use this position if no other threes use it
-      newP=rand()%100;
-      if(newP<13)
-      newP=position+newSeedSpace;
-      else if(newP<25)
-      newP=position-newSeedSpace;
-      else if(newP<38)
-      newP=position+newSeedSpace+1;
-      else if(newP<50)
-      newP=position-newSeedSpace-1;
-      else if(newP<63)
-      newP=position+newSeedSpace+2;
-      else if(newP<75)
-      newP=position-newSeedSpace-2;
-      else if(newP<87)
-      newP=position+newSeedSpace+3;
-      else newP=position-newSeedSpace-3;
-
-      for(int i=0;i<treeIDlast;i++)
+    for(int i=0;i<maxTree;i++)
+    {
+      if(!treesManage[i].dying)
       {
-        if(newP==trees[i])
+        availableSpace=true;
+        avaiSpace[newTreeCount]=i;
+        break;
+      }
+    }
+    if(!availableSpace)
+    return;
+  }
+  int newP=rand()%100;
+  if(newP<13)
+  newP=position+newSeedSpace;
+  else if(newP<25)
+  newP=position-newSeedSpace;
+  else if(newP<38)
+  newP=position+newSeedSpace+1;
+  else if(newP<50)
+  newP=position-newSeedSpace-1;
+  else if(newP<63)
+  newP=position+newSeedSpace+2;
+  else if(newP<75)
+  newP=position-newSeedSpace-2;
+  else if(newP<87)
+  newP=position+newSeedSpace+3;
+  else newP=position-newSeedSpace-3;
+
+  for(int i=0;i<treeNum;i++)
+  {
+    if(newP==treesManage[i].position)
+    {
+      //std::cout<<"no more space to plant this seed"<<std::endl;
+      return;
+    }
+  }
+  for(int i=0;i<newTreeCount;i++)
+  {
+    if(newP==newTree[i])
+    {
+      //std::cout<<"no more space to plant this seed"<<std::endl;
+      return;
+    }
+  }
+  newTree[newTreeCount]=newP;
+  newTreeCount++;
+
+}
+
+void tree_update()
+{
+  for(int i=0;i<treeNum;i++)
+  {
+    if(treesManage[i].dying)
+    continue;
+
+    treesManage[i].day++;
+    //state seed 0
+    if(treesManage[i].state==state_seed)
+    {
+      if(treesManage[i].day>=treesManage[i].toSeedling)
+        treesManage[i].goNextState=true;
+    }
+    //state seedling 1
+    else if(treesManage[i].state==state_seedling)
+    {
+      //each #days has prob to grow new branch
+      if((treesManage[i].day-treesManage[i].toSeedling)/timeToBranch>treesManage[i].branchCount)
+      {
+        if( ((double)rand() / RAND_MAX) <= 1.0/(double)treesManage[i].branch )
         {
-          //std::cout<<"no more space to plant this seed"<<std::endl;
-          return;
+          treesManage[i].branch=treesManage[i].branch*2;
+        }
+        treesManage[i].branchCount++;
+      }
+
+      if(treesManage[i].day>=treesManage[i].toTree+treesManage[i].toSeedling)
+        treesManage[i].goNextState=true;
+    }
+    //state seedling 2
+    else if(treesManage[i].state==state_tree)
+    {
+      //to next state
+      if(todayInfo.globalMonth==1 || todayInfo.globalMonth==4 || todayInfo.globalMonth==8)
+      {
+        treesManage[i].goNextState=true;
+        treesManage[i].bloomDays=0;
+        for(int j=0;j<treesManage[i].branch;j++)
+        treesManage[i].flower+=pick_rand_num(flowersPBranch,floatingRange);
+      }
+
+    }
+    //state bloom 3
+    else if(treesManage[i].state==state_bloom)//
+    {
+      treesManage[i].bloomDays++;
+
+      //every windy day,each flower has prob pollinate
+      if(treesManage[i].flower>0 && todayInfo.todayIsWindy)
+      {
+        for(int j=0;j<treesManage[i].flower;j++)
+        {
+          if(rand()%101<=windPolliProb*100)
+          {
+            treesManage[i].flower--;
+            treesManage[i].havingFruit++;
+          }
         }
       }
-    trees[treeIDlast]=newP;
-    treeIDlast++;
+
+      //to next state
+      if(treesManage[i].bloomDays>=treesManage[i].toFruiting)//
+      {
+        treesManage[i].fruitDays=0;
+        treesManage[i].goNextState=true;
+        treesManage[i].fruit=treesManage[i].havingFruit;
+        treesManage[i].havingFruit=0;
+        treesManage[i].flower=0;
+      }
+    }
+    //state fruiting 4
+    else
+    {
+      treesManage[i].fruitDays++;
+
+      if(treesManage[i].fruitDays>=treesManage[i].backtoTree)
+      {
+        treesManage[i].goNextState=true;
+        for(int j=0;j<treesManage[i].fruit;j++)
+        {
+          if(rand()%101<=newSeedProb)
+          add_tree_to_list(treesManage[i].position);
+        }
+        treesManage[i].fruit=0;
+      }
+    }
+
+    //update tree state
+     if(treesManage[i].goNextState)
+     {
+       treesManage[i].goNextState=false;
+       if(treesManage[i].state==state_fruiting)
+       treesManage[i].state=state_tree;
+       else treesManage[i].state++;
+     }
+
+    if(todayInfo.todayIsRainy)
+    treesManage[i].daysNoWater=0;
+    else treesManage[i].daysNoWater++;
+    //die without enough water,exceed lifetime
+    if(treesManage[i].day>=treesManage[i].lifeTime||
+      (treesManage[i].state==state_seed && treesManage[i].daysNoWater>=seedDieNoWater)||
+      (treesManage[i].state==state_seedling && treesManage[i].daysNoWater>=seedlingDieNoWater)||
+      (treesManage[i].state!=state_seedling && treesManage[i].state!=state_seed && treesManage[i].daysNoWater>=treeDieNoWater))
+    treesManage[i].dying=true;
   }
 }
 
 void *tree(void* args)
 {
-  int* position=(int*) args;
-
-  int state=state_seed;
-  int prestate=-1;
-  int day=0;
-  int daysNoWater=0;
-  int branch=1;
-  int branchCount=0;
-  int bloomDays=0;
-  int fruitDays=0;
-  int fruit=0;
-  int flower=0;
-  int havingFruit=0;
-  bool dying=false;
-  bool goNextState=false;
-
-  //randomly set days plant requires to enter next state
   srand(time(0)-pthread_self());
-  int toTree=pick_rand_num(seedlingToTree,floatingRange);
-  int toSeedling=pick_rand_num(seedToSeedling,floatingRange);
-  int toFruiting=pick_rand_num(bloomToFruiting,floatingRange);
-  int backtoTree=pick_rand_num(fruitingToTree,floatingRange);
-  int lifeTime=pick_rand_num(treeLifeTime,floatingRange);
 
   while(1)
-    {
-      //wait a new day begins
-      sem_wait(&dayBEGINs);
-      day++;
-
-      //state seed 0
-      if(state==state_seed)
-      {
-        if(day>=toSeedling)
-          goNextState=true;
-      }
-      //state seedling 1
-      else if(state==state_seedling)
-      {
-        //each #days has prob to grow new branch
-        if((day-toSeedling)/timeToBranch>branchCount)
-        {
-          if( ((double)rand() / RAND_MAX) <= 1.0/(double)branch )
-          {
-            branch=branch*2;
-          }
-          branchCount++;
-        }
-
-        if(day>=toTree+toSeedling)
-          goNextState=true;
-      }
-      //state seedling 2
-      else if(state==state_tree)
-      {
-        //to next state
-        if(todayInfo.globalMonth==1 || todayInfo.globalMonth==4 || todayInfo.globalMonth==8)
-        {
-          goNextState=true;
-          bloomDays=0;
-          for(int i=0;i<branch;i++)
-          flower+=pick_rand_num(flowersPBranch,floatingRange);
-        }
-
-      }
-      //state bloom 3
-      else if(state==state_bloom)//
-      {
-        bloomDays++;
-
-        //every windy day,each flower has prob pollinate
-        if(flower>0 && todayInfo.todayIsWindy)
-        {
-          for(int i=0;i<flower;i++)
-          {
-            if(rand()%101<=windPolliProb*100)
-            {
-              flower--;
-              havingFruit++;
-            }
-          }
-        }
-
-        //to next state
-        if(bloomDays>=toFruiting)//
-        {
-          fruitDays=0;
-          goNextState=true;
-          fruit=havingFruit;
-          havingFruit=0;
-          flower=0;
-        }
-      }
-      //state fruiting 4
-      else
-      {
-        fruitDays++;
-
-        if(fruitDays>=backtoTree)
-        {
-          goNextState=true;
-          for(int i=0;i<fruit;i++)
-          {
-            if(rand()%101<=newSeedProb)
-            add_tree_to_list(*position);
-          }
-          fruit=0;
-        }
-      }
-
-      if(todayInfo.todayIsRainy)
-      daysNoWater=0;
-      else daysNoWater++;
-      //die without enough water,exceed lifetime
-      if(day>=lifeTime||
-        (state==state_seed && daysNoWater>=seedDieNoWater)||
-        (state==state_seedling && daysNoWater>=seedlingDieNoWater)||
-        (state!=state_seedling && state!=state_seed && daysNoWater>=treeDieNoWater))
-      dying=true;
-
-
-      //draw tree
-      if(prestate==-1 || (prestate>-1 && prestate!=state))
-      {
-        pthread_mutex_lock(&protectPrint);
-        std::cout<<"\33["<<ground<<";"<<positionAdjust+*position<<"H";
-        switch(state)
-        {
-          case 0://seed
-          std::cout<<"ᨔ"<<std::flush; break;
-          case 1://seedling
-          std::cout<<"🌱"<<std::flush; break;
-          case 2://tree
-          std::cout<<"🌳"<<std::flush; break;
-          case 3://bloom
-          std::cout<<"🌻"<<std::flush; break;
-          case 4://fruiting
-          std::cout<<"🍐"<<std::flush; break;
-        }
-        pthread_mutex_unlock(&protectPrint);
-      }
-
-      prestate=state;
-
-      //update tree state
-      if(goNextState)
-      {
-        goNextState=false;
-        if(state==state_fruiting)
-        state=state_tree;
-        else state++;
-      }
-
-      sem_post(&endReading);
-      sem_wait(&endReadingCheck);
-      if(dying)
-      {
-        pthread_mutex_lock(&protectPrint);
-        std::cout<<"\33["<<ground<<";"<<positionAdjust+*position<<"H"<<" "<<std::flush;
-        pthread_mutex_unlock(&protectPrint);
-        treeDying++;
-        sem_post(&dayENDs);
-        for(int i=0;i<treeIDlast;i++)
-        {
-          if(trees[i]==*position)
-          {
-            trees[i]=2147483647;
-            break;
-          }
-        }
-        return NULL;
-      }
-      sem_post(&dayENDs);
-  }
-}
-
-int tree_manager()
-{
-  for(treeID;treeID<treeIDlast;treeID++)
   {
-    pthread_create(&tree_thread[treeID], NULL, tree, &trees[treeID]);
-    treesAlive++;
+    //wait to create trees
+    sem_wait(&dayBEGINs);
+
+    create_tree();
+
+    sem_post(&createDone);
+    sem_wait(&dayUpdate);
+
+    tree_update();
+    draw_tree();
+    sem_post(&dayends);
   }
-  for(treeDying;treeDying>0;treeDying--)
-  treesAlive--;
-  return treesAlive;
 }
