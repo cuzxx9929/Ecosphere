@@ -53,13 +53,11 @@ struct treeStruct{
   int toFruiting;
   int backtoTree;
   int lifeTime;
-  bool dying;
+  bool alive;
   bool goNextState;
 };
 
 struct treeStruct treesManage[maxTree];
-int avaiSpace[maxTree];
-int treeNum=0;
 int newTree[maxTree];
 int newTreeCount=0;
 
@@ -71,9 +69,9 @@ int pick_rand_num(int num, double floating)
 
 void draw_tree()
 {
-  for(int i=0;i<treeNum;i++)
+  for(int i=0;i<maxTree;i++)
   {
-    if(!treesManage[i].dying)
+    if(!treesManage[i].alive)
     continue;
     pthread_mutex_lock(&protectPrint);
     std::cout<<" "<<treesManage[i].day;
@@ -99,7 +97,16 @@ void create_tree()
 {
   for(newTreeCount;newTreeCount>0;newTreeCount--)
   {
-    int freeSpace=avaiSpace[newTreeCount];
+    int freeSpace;
+
+    for(int i=0;i<maxTree;i++)
+    {
+      if(!treesManage[i].alive)
+      {
+        freeSpace=i;
+        break;
+      }
+    }
 
     treesManage[freeSpace].position=newTree[newTreeCount-1];
     //randomly set days plant requires to enter next state
@@ -119,32 +126,27 @@ void create_tree()
     treesManage[freeSpace].fruit=0;
     treesManage[freeSpace].flower=0;
     treesManage[freeSpace].havingFruit=0;
-    treesManage[freeSpace].dying=false;
+    treesManage[freeSpace].alive=true;
     treesManage[freeSpace].goNextState=false;
-    treeNum++;
   }
 }
-
-
 
 void add_tree_to_list(int position)
 {
   bool availableSpace=false;
   //randomly pick x,y ; use this position if no other threes use it
-  if(treeNum==maxTree)
-  {
+
     for(int i=0;i<maxTree;i++)
     {
-      if(!treesManage[i].dying)
+      if(!treesManage[i].alive)
       {
         availableSpace=true;
-        avaiSpace[newTreeCount]=i;
         break;
       }
     }
     if(!availableSpace)
     return;
-  }
+
   int newP=rand()%100;
   if(newP<13)
   newP=position+newSeedSpace;
@@ -162,9 +164,9 @@ void add_tree_to_list(int position)
   newP=position+newSeedSpace+3;
   else newP=position-newSeedSpace-3;
 
-  for(int i=0;i<treeNum;i++)
+  for(int i=0;i<maxTree;i++)
   {
-    if(newP==treesManage[i].position)
+    if(newP==treesManage[i].position && !treesManage[i].alive)
     {
       //std::cout<<"no more space to plant this seed"<<std::endl;
       return;
@@ -185,9 +187,9 @@ void add_tree_to_list(int position)
 
 void tree_update()
 {
-  for(int i=0;i<treeNum;i++)
+  for(int i=0;i<maxTree;i++)
   {
-    if(treesManage[i].dying)
+    if(!treesManage[i].alive)
     continue;
 
     treesManage[i].day++;
@@ -288,7 +290,7 @@ void tree_update()
       (treesManage[i].state==state_seed && treesManage[i].daysNoWater>=seedDieNoWater)||
       (treesManage[i].state==state_seedling && treesManage[i].daysNoWater>=seedlingDieNoWater)||
       (treesManage[i].state!=state_seedling && treesManage[i].state!=state_seed && treesManage[i].daysNoWater>=treeDieNoWater))
-    treesManage[i].dying=true;
+    treesManage[i].alive=false;
   }
 }
 
