@@ -5,6 +5,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 
+extern bool treeExtinct;
+
 struct dayInfoStruct todayInfo;
 pthread_mutex_t protectPrint;
 sem_t dayBEGINs;
@@ -12,10 +14,8 @@ sem_t createDone;
 sem_t dayUpdate;
 sem_t dayends;
 
-
 void update_today_info()
-{
-  //update new day information
+{ //update new day information
   //rainy
   if( (double)rand() / RAND_MAX <= rainProb)
   todayInfo.todayIsRainy = true;
@@ -59,27 +59,26 @@ void update_today_info()
   }
 }
 
-
 int main()
-{
-  //semaphore and mutex initialize,and dayinfo
+{ //semaphore and mutex initialize,and dayinfo
   sem_init(&dayBEGINs, 0, 0);
   sem_init(&createDone, 0, 0);
   sem_init(&dayUpdate, 0, 0);
   sem_init(&dayends, 0, 0);
   pthread_mutex_init(&protectPrint, NULL);
+  
   todayInfo.globalMonth=1;
   todayInfo.globalYear=1;
   todayInfo.globalDay=1;
 
-/*  //print graph
+  //GUI
   system("clear");
   std::cout<<"\33[?25l";//hide cursor
   std::cout<<"\33[2;1H"<<"rainy:   windy: "<<std::endl;
   std::cout<<"\33[22;1H";
   for(int i=0;i<101;i++)
   std::cout<<"▀";//print ground
-*/
+
   srand(time(0));
 
   //set first tree
@@ -98,12 +97,9 @@ int main()
     update_today_info();
     //print information of the day
     pthread_mutex_lock(&protectPrint);
-/*    std::cout<<"\33[1;1H"<<"\33[K";//move to 1,1 position, and clear the row
+    std::cout<<"\33[1;1H"<<"\33[K";//move to 1,1 position, and clear the row
     std::cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D "<<std::flush;
-    std::cout<<"\33[2;7H"<<todayInfo.todayIsRainy<<"\33[2;16H"<<todayInfo.todayIsWindy<<std::flush;*/
-
-    std::cout<<todayInfo.globalYear<<"Y/"<<todayInfo.globalMonth<<"M/"<<todayInfo.globalDay<<"D "<<"rainy: "<<todayInfo.todayIsRainy<<"  windy: "<<todayInfo.todayIsWindy<<std::endl;
-
+    std::cout<<"\33[2;7H"<<todayInfo.todayIsRainy<<"\33[2;16H"<<todayInfo.todayIsWindy<<std::flush;
     pthread_mutex_unlock(&protectPrint);
 
     //notice creatures day infor is updated
@@ -112,9 +108,9 @@ int main()
     //wait to finish today
     sem_wait(&dayends);
 
-  /*  //if no more trees, terminates
-    if(treeTerminate)
-    break;*/
+    //if no more trees, terminates
+    if(treeExtinct)
+    break;
 
     //one day has gone
     usleep(usecOf1day);
@@ -125,9 +121,9 @@ int main()
   sem_destroy(&dayUpdate);
   sem_destroy(&dayends);
   pthread_mutex_destroy(&protectPrint);
-//  std::cout<<"\33[?25h"<<"\33[23;1H";//display cursor
+  std::cout<<"\33[?25h"<<"\33[23;1H";//display cursor
 
-  std::cout<<"program terminates"<<std::endl;
+  std::cout<<"the world dies out"<<std::endl;
 
   return 0;
 }
