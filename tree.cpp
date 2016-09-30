@@ -6,7 +6,7 @@
 #include <iomanip>
 
 #define newSeedProb 0.1
-#define windPolliProb 0.5
+#define windPolliProb 0.3
 
 #define seedDieNoWater 3
 #define seedlingDieNoWater 6
@@ -20,7 +20,6 @@
 
 #define flowersPBranch 5
 #define timeToBranch 10
-#define extenSeedSpace 5
 
 #define state_seed 0
 #define state_seedling 1
@@ -141,18 +140,16 @@ void add_tree_to_list(int position)
   if(!freeSpace)
   return;
 
-  int newP=rand()%100;
-  if(newP>=50)
+  int newP=rand()%100+1;
+  if(newP>50)
   {
     newP-=50;
-    newP=newP/10+1;
-    newP*=extenSeedSpace/5;
-    newP+=position;
+    newP=newP/25+1;
+    newP=position+newP;
   }
   else{
-    newP=newP/10+1;
-    newP*=extenSeedSpace/5;
-    newP-=position;
+    newP=newP/25+1;
+    newP=position-newP;
   }
   //check if the position is being used, if it is ,return
 

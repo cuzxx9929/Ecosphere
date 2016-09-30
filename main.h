@@ -2,7 +2,6 @@
  //constant for world use
  //Constants unit:day
  #define usecOf1day  50000 //1s=1000000usec
- #define newSeedProb 0.1
  #define rainProb 0.77
  #define windProb 0.44
  #define maxTree 100
